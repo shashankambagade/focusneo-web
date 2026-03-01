@@ -1,0 +1,35 @@
+import "./globals.css";
+import { Instrument_Sans, Tinos } from "next/font/google";
+import { DEFAULT_LANG } from "@/config";
+import Head from "next/head";
+import NextTopLoader from "nextjs-toploader";
+
+const instrumentSans = Instrument_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600" , "700"],
+  variable: "--font-instrument-sans",
+  style: ["normal", "italic"], 
+  display: "swap",
+});
+
+const tinos = Tinos({
+  subsets: ["latin"],
+  weight: ["400", "700"],
+  variable: "--font-tinos",
+  style: ["normal", "italic"], 
+  display: "swap",
+});
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang={DEFAULT_LANG} className={`${instrumentSans.variable} ${tinos.variable}`} suppressHydrationWarning>
+      <Head>
+        {/* Add scrips here */}
+      </Head>
+      <body suppressHydrationWarning>
+        <NextTopLoader color="#00fec3" showSpinner={false} height={3} />
+        {children}
+      </body>
+    </html>
+  );
+}
