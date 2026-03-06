@@ -86,21 +86,6 @@ export default async function Footer({ lang = DEFAULT_LANG }) {
   //   GET IN TOUCH SECTION DATA
   // ================================
   const contactBlock = themeOptions?.get_in_touch || {};
-  const {
-    sub_heading,
-    heading,
-    short_description,
-    cta_text,
-    cta_url,
-    column_i_text,
-    column_ii_text,
-    column_iii_text,
-    column_i_image,
-    column_ii_image,
-    column_iii_image,
-    right_top,
-    right_bottom,
-  } = contactBlock;
 
   // FOOTER DATA
   const quickLinks = extractLinksFromHtml(widgets?.quick_links);
@@ -127,8 +112,6 @@ export default async function Footer({ lang = DEFAULT_LANG }) {
 
   return (
     <>
-
-
       {/* =====================================================
           EXISTING FOOTER SECTION
          ===================================================== */}
