@@ -6,7 +6,7 @@ import {
   getCf7FormSchema,
   submitCf7Direct,
   submitCf7FormProxy,
-} from "@/lib/wp";
+} from "@/lib/api";
 import Image from "next/image";
 import ArrowSvg from "../../../../public/right-arrow.svg";
 

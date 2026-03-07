@@ -17,9 +17,10 @@ import { Navigation } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/navigation";
 
-import { getCaseStudies } from "@/lib/wp";
+import { getCaseStudies } from "@/lib/api";
+import { DEFAULT_LANG } from "@/config";
 
-export default function RealtedCase({ data, lang = "en" }) {
+export default function RealtedCase({ data, lang = DEFAULT_LANG }) {
   const [cases, setCases] = useState([]);
 
   const { sub_heading, heading, cta_text, cta_url, read_more_text } =
@@ -150,7 +151,7 @@ export default function RealtedCase({ data, lang = "en" }) {
                     />
                     <Link
                       href={
-                        lang === "en"
+                        lang === DEFAULT_LANG
                           ? `/case-study/${item.slug}`
                           : `/${lang}/case-study/${item.slug}`
                       }

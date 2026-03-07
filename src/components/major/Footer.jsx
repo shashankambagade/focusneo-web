@@ -4,7 +4,7 @@ import React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { getFooterWidgets, getThemeOptions } from "@/lib/api";
-import { DEFAULT_LANG, langUrl } from "@/config";
+import { DEFAULT_LANG } from "@/config";
 
 import LinkedInPng from "../../../public/linkedin.png";
 import XPng from "../../../public/x.png";
@@ -39,6 +39,15 @@ function extractLinksFromHtml(html) {
     .filter((item) => item.label);
 }
 
+// Removes block-level structural tags that WP sometimes leaks into widget HTML
+// while keeping safe inline tags (<a>, <strong>, <em>, <span>, etc.)
+function sanitizeLineHtml(html = "") {
+  return html
+    .replace(/<\/?(p|div|section|article|aside|header|footer|main|nav|ul|ol|li|h[1-6]|blockquote|figure|figcaption)\b[^>]*>/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function extractOfficesFromHtml(html) {
   if (!html) return [];
   const normalized = html.replace(/\\n/g, "");
@@ -50,7 +59,7 @@ function extractOfficesFromHtml(html) {
     const title = stripHtml(match[1]);
     const lines = match[2]
       .split(/<br\s*\/?>/i)
-      .map((line) => line.trim())
+      .map((line) => sanitizeLineHtml(line))
       .filter(Boolean);
 
     if (title) blocks.push({ title, lines });
@@ -61,26 +70,10 @@ function extractOfficesFromHtml(html) {
 
 export default async function Footer({ lang = DEFAULT_LANG }) {
   // Fetch WP theme options + footer widgets
-  let [widgets, themeOptions] = await Promise.all([
+  const [widgets, themeOptions] = await Promise.all([
     getFooterWidgets(lang),
     getThemeOptions(lang),
   ]);
-
-  // WordPress doesn't have footer widgets/options configured for non-English yet.
-  // Fall back to English so the footer still renders correctly.
-  if (lang !== DEFAULT_LANG) {
-    const needsWidgetsFallback = !widgets?.quick_links && !widgets?.services;
-    const needsOptionsFallback = !themeOptions?.footer?.footer_logo?.url;
-
-    if (needsWidgetsFallback || needsOptionsFallback) {
-      const [enWidgets, enOptions] = await Promise.all([
-        needsWidgetsFallback ? getFooterWidgets(DEFAULT_LANG) : Promise.resolve(widgets),
-        needsOptionsFallback ? getThemeOptions(DEFAULT_LANG) : Promise.resolve(themeOptions),
-      ]);
-      if (needsWidgetsFallback) widgets = enWidgets;
-      if (needsOptionsFallback) themeOptions = enOptions;
-    }
-  }
 
   // ================================
   //   GET IN TOUCH SECTION DATA
@@ -112,9 +105,6 @@ export default async function Footer({ lang = DEFAULT_LANG }) {
 
   return (
     <>
-      {/* =====================================================
-          EXISTING FOOTER SECTION
-         ===================================================== */}
       <footer className="bg-[var(--color-brand)] text-white relative z-10  border-solid border-t border-[#9293a066]">
         <div className="mx-auto w-full web-width px-6 pb-12 pt-12 md:pt-25">
           {/* ============ MAIN FOOTER CONTENT ============ */}
@@ -129,7 +119,7 @@ export default async function Footer({ lang = DEFAULT_LANG }) {
                         key={item.label}
                         className="flex items-center relative group justify-between text-xl md:text-[32px] border-b border-white/10 mb-0 py-[10.5px] [&:nth-child(1)]:pt-0 footer-quick-link"
                       >
-                        <Link href={langUrl(item.href, lang)} className=" hover:text-white/70">
+                        <Link href={lang !== DEFAULT_LANG ? `/${lang}${item.href}` : item.href} className=" hover:text-white/70">
                           {item.label}
                           <Image src={RightSVG} width={19} height={19} alt="arrow" className="opacity-0 group-hover:opacity-100 absolute right-3 top-6 " />
                         </Link>
@@ -151,7 +141,10 @@ export default async function Footer({ lang = DEFAULT_LANG }) {
                       <ul className="space-y-2 text-base font-normal text-white/90 leading-[30px]">
                         {services.map((service) => (
                           <li key={service.label}>
-                            <Link href={langUrl(service.href, lang)} className="hover:text-white/70">
+                            <Link
+                              href={lang !== DEFAULT_LANG ? `/${lang}${service.href}` : service.href}
+                              className="hover:text-white/70"
+                            >
                               {service.label}
                             </Link>
                           </li>
@@ -172,11 +165,11 @@ export default async function Footer({ lang = DEFAULT_LANG }) {
                             <p className="mb-3 font-medium uppercase">
                               {office.title}
                             </p>
-                            <ul className="space-y-1 text-white">
+                            <div className="space-y-1 text-white">
                               {office.lines.map((line, i) => (
-                                <li key={i} dangerouslySetInnerHTML={{ __html: line }} />
+                                <div key={i} dangerouslySetInnerHTML={{ __html: line }} />
                               ))}
-                            </ul>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -193,7 +186,7 @@ export default async function Footer({ lang = DEFAULT_LANG }) {
               {/* LOGO */}
               <div>
                 {footerLogo?.url && (
-                  <div className="relative h-[39px] w-60 opacity-80">
+                  <div className="relative h-[39px] w-[240px] opacity-80">
                     <Image
                       src={footerLogo.url}
                       alt="Footer Logo"
@@ -216,7 +209,7 @@ export default async function Footer({ lang = DEFAULT_LANG }) {
                   {socialLinks.map(([network, url]) => {
                     const IconSrc = SOCIAL_ICON_MAP[network];
                     return (
-                      <Link key={network} href={url} target="_blank" rel="noopener noreferrer">
+                      <Link key={network} href={url} target="_blank">
                         <Image
                           src={IconSrc}
                           width={31}

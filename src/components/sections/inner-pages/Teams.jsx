@@ -11,7 +11,7 @@ import {
   buildTeamFilters,
   filterTeamByType,
   getTeamImage,
-} from "@/lib/wp";
+} from "@/lib/api";
 
 export default function TeamSection({ data, lang }) {
   const currentLang = lang || DEFAULT_LANG;

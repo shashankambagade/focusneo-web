@@ -1,12 +1,12 @@
-import { DEFAULT_LANG, WP_BASE } from "@/config";
+import { DEFAULT_LANG } from "@/config";
+import { WP_BASE } from "@/config";
 
-// Generic fetch helper with safety
-// revalidate: seconds before Next.js re-fetches from WP (default 5 min)
-export async function fetchWP(endpoint, revalidate = 300) {
+// Generic fetch helper with ISR revalidation (60s by default).
+// Pass revalidate=0 for no-cache, or false for indefinite cache.
+export async function fetchWP(endpoint, { revalidate = 60 } = {}) {
   try {
     const url = `${WP_BASE}${endpoint.startsWith("/") ? "" : "/"}${endpoint}`;
     const res = await fetch(url, { next: { revalidate } });
-    if (!res.ok) return null;
     return await res.json();
   } catch (err) {
     return null;
@@ -78,28 +78,24 @@ export async function getMediaById(id) {
 
 // Menus
 export async function getMenu(lang = DEFAULT_LANG) {
-  const menu = await fetchWP(`/myroutes/v1/menus?lang=${lang}`, 3600);
-  if (!menu) console.warn(`⚠️ Menu not found for ${lang}`);
+  const menu = await fetchWP(`/myroutes/v1/menus?lang=${lang}`);
   return menu;
 }
 
 // Footer widgets
 export async function getFooterWidgets(lang = DEFAULT_LANG) {
-  const footer = await fetchWP(`/myroutes/v1/footer-widgets?lang=${lang}`, 3600);
-  if (!footer) console.warn(`⚠️ Footer widgets missing for ${lang}`);
+  const footer = await fetchWP(`/myroutes/v1/footer-widgets?lang=${lang}`);
   return footer;
 }
 
 export async function getThemeOptions(lang = DEFAULT_LANG) {
   try {
-    const options = await fetchWP(`/focusneo/v1/theme-options?lang=${lang}`, 3600);
+    const options = await fetchWP(`/focusneo/v1/theme-options?lang=${lang}`);
     if (!options) {
-      console.warn(`⚠️ Theme options missing for ${lang}`);
       return { header: {}, footer: {} };
     }
     return options;
-  } catch (error) {
-    console.error(`⚠️ Failed to fetch theme options for ${lang}:`, error.message);
+  } catch {
     return { header: {}, footer: {} };
   }
 }
@@ -108,8 +104,7 @@ async function getEntryById(endpoint, id, lang = DEFAULT_LANG) {
   if (!id) return null;
   try {
     return await fetchWP(`/wp/v2/${endpoint}/${id}?lang=${lang}`);
-  } catch (err) {
-    console.error(`⚠️ getEntryById failed for ${endpoint}:`, err.message);
+  } catch {
     return null;
   }
 }
@@ -215,7 +210,6 @@ export async function getTranslationBySlug(slug, currentLang, targetLang, postTy
     }
 
     // Alternative: Query all entries in target language and find by translation group
-    // This works when translation IDs aren't directly available
     const allTargetEntries = await fetchWP(`/wp/v2/${endpoint}?lang=${targetLang}&per_page=100`);
 
     if (Array.isArray(allTargetEntries)) {
@@ -253,7 +247,6 @@ export async function getAllEntriesByType(endpoint, lang = DEFAULT_LANG) {
 }
 
 // Find translation by checking all entries in alternate language
-// This works by finding entries that share the same translation group
 export async function findTranslationByEntry(entryId, entryType, currentLang, targetLang) {
   try {
     // First, try to get the entry's translation metadata
@@ -277,12 +270,9 @@ export async function findTranslationByEntry(entryId, entryType, currentLang, ta
       }
     }
 
-    // Alternative: Query all entries in target language and find by translation_of or element_id
-    // This is a fallback if direct translation metadata isn't available
+    // Fallback: query all entries in target language
     const allEntries = await getAllEntriesByType(entryType, targetLang);
 
-    // Try to find entry with matching translation relationship
-    // WPML stores this in various ways, so we check multiple possibilities
     for (const altEntry of allEntries) {
       const altTranslations = altEntry?.translations ||
         altEntry?.wpml_translations ||
@@ -300,8 +290,7 @@ export async function findTranslationByEntry(entryId, entryType, currentLang, ta
     }
 
     return null;
-  } catch (err) {
-    console.error(`⚠️ findTranslationByEntry failed:`, err.message);
+  } catch {
     return null;
   }
 }

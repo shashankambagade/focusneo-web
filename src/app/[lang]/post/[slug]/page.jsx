@@ -4,12 +4,23 @@ import Header from "@/components/major/Header";
 import PageBuilder from "@/components/major/PageBuilder";
 import Footer from "@/components/major/Footer";
 import { resolveParams } from "@/lib/params";
-import { getPostBySlug, getMediaById } from "@/lib/api";
+import { getPostBySlug, getMediaById, fetchWP } from "@/lib/api";
 import { buildMetadataFromYoast } from "@/lib/seo";
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { DEFAULT_LANG } from "@/config";
+import { DEFAULT_LANG, SUPPORTED_LANGS } from "@/config";
 import Link from "next/link";
+
+export const revalidate = 60;
+
+export async function generateStaticParams() {
+  const results = await Promise.all(
+    SUPPORTED_LANGS.map((lang) => fetchWP(`/wp/v2/posts?per_page=100&lang=${lang}`))
+  );
+  return SUPPORTED_LANGS.flatMap((lang, i) =>
+    (Array.isArray(results[i]) ? results[i] : []).map((p) => ({ lang, slug: p.slug }))
+  );
+}
 
 /* ---------------------------------------------------------
    COMPONENT: PostBody
@@ -90,7 +101,7 @@ export default async function postSinglePage({ params }) {
         pathPrefix="post"
         entryId={post?.id}
       />
-      <div className="h-[112px] w-full bg-black"></div>
+      <div className="h-28 w-full bg-black"></div>
       <main className="py-15 md:py-30 web-width px-6">
         <article className="max-w-4xl mx-auto space-y-6">
           {/* TITLE */}
@@ -126,7 +137,7 @@ export default async function postSinglePage({ params }) {
           {/* RELATED POSTS */}
           <section className="related-posts">
             <h2 className="content-heading text-center mb-14 mt-14">
-              {lang === DEFAULT_LANG ? "Related Posts" : "Flere Nytherer"}
+              {"Related Posts"}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {post.relatedPosts && post.relatedPosts.length > 0 ? (

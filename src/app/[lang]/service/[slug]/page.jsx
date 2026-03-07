@@ -5,10 +5,19 @@ import PageBuilder from "@/components/major/PageBuilder";
 import ServicePageBuilder from "@/components/major/ServiceBuilder";
 import Footer from "@/components/major/Footer";
 import { resolveParams } from "@/lib/params";
-import { getServiceBySlug } from "@/lib/api";
+import { getServiceBySlug, getAllServices } from "@/lib/api";
 import { buildMetadataFromYoast } from "@/lib/seo";
 import { notFound } from "next/navigation";
-import { DEFAULT_LANG } from "@/config";
+import { DEFAULT_LANG, SUPPORTED_LANGS } from "@/config";
+
+export const revalidate = 60;
+
+export async function generateStaticParams() {
+  const results = await Promise.all(SUPPORTED_LANGS.map((lang) => getAllServices(lang)));
+  return SUPPORTED_LANGS.flatMap((lang, i) =>
+    (Array.isArray(results[i]) ? results[i] : []).map((s) => ({ lang, slug: s.slug }))
+  );
+}
 
 export default async function ServiceSinglePage({ params }) {
   const resolved = await params;

@@ -2,143 +2,130 @@
 
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import ArrowSvg from "../../../public/right-arrow.svg";
 import DownSvg from "../../../public/down-arrow.svg";
 import ArrowSvgB from "../../../public/right-arrow-black.png";
 import { getMenu, getThemeOptions, getEntryTranslations } from "@/lib/api";
-import { DEFAULT_LANG, SUPPORTED_LANGS, LANG_LABELS, LANG_HOME, langUrl } from "@/config";
+import { DEFAULT_LANG, SUPPORTED_LANGS } from "@/config";
 
-// URL path prefix per entry type
-const ENTRY_PATH = {
-  pages: "",
-  page: "",
-  services: "/service",
-  service: "/service",
-  case_study: "/case-study",
-  post: "/post",
-  posts: "/post",
-};
+// Build a URL for a given lang + optional slug/prefix
+function buildLangUrl(l, slug, pathPrefix) {
+  const langPrefix = l === DEFAULT_LANG ? "" : `/${l}`;
+  if (!slug || slug === "frontpage") return langPrefix || "/";
+  const prefix = pathPrefix ? `/${pathPrefix}` : "";
+  return `${langPrefix}${prefix}/${slug}`;
+}
 
 export default function Header({
   lang = DEFAULT_LANG,
-  entryType = "pages",
+  currentSlug = "",
+  entryType = "page",
+  pathPrefix = "",
   entryId = null,
 }) {
+  const otherLangs = SUPPORTED_LANGS.filter((l) => l !== lang);
+
+  const defaultLangUrls = () =>
+    Object.fromEntries(
+      otherLangs.map((l) => [l, l === DEFAULT_LANG ? "/" : `/${l}`])
+    );
+
   const [menu, setMenu] = useState(null);
   const [options, setOptions] = useState(null);
+  const [langUrls, setLangUrls] = useState(defaultLangUrls);
   const [scrolled, setScrolled] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [openSubmenu, setOpenSubmenu] = useState(null);
-  const [langOpen, setLangOpen] = useState(false);
-  // Maps lang code → translated URL for the current page. Defaults to homepages.
-  const [translatedUrls, setTranslatedUrls] = useState(
-    Object.fromEntries(SUPPORTED_LANGS.filter((l) => l !== lang).map((l) => [l, LANG_HOME[l]]))
-  );
-  const langRef = useRef(null);
-
   const isLoading = !menu;
 
   // Fetch menu + theme options client-side
   useEffect(() => {
     async function loadData() {
       try {
-        let [menuData, themeOptions] = await Promise.all([
+        const [menuData, themeOptions] = await Promise.all([
           getMenu(lang),
           getThemeOptions(lang),
         ]);
-
-        // WordPress doesn't have menus/options configured for non-English languages yet.
-        // Fall back to English data so the header still renders correctly.
-        if (lang !== DEFAULT_LANG) {
-          const needsMenuFallback = !menuData?.main?.length;
-          const needsOptionsFallback = !themeOptions?.header?.logo_light?.url;
-
-          if (needsMenuFallback || needsOptionsFallback) {
-            const [enMenu, enOptions] = await Promise.all([
-              needsMenuFallback ? getMenu(DEFAULT_LANG) : Promise.resolve(menuData),
-              needsOptionsFallback ? getThemeOptions(DEFAULT_LANG) : Promise.resolve(themeOptions),
-            ]);
-            if (needsMenuFallback) menuData = enMenu;
-            if (needsOptionsFallback) themeOptions = enOptions;
-          }
-        }
-
-        setMenu(menuData || { main: [], footer_quick_link: [], services: [] });
+        setMenu(menuData);
         setOptions(themeOptions?.header || {});
-      } catch (error) {
-        console.error("Failed to load header data:", error);
-        setMenu({ main: [], footer_quick_link: [], services: [] });
+      } catch {
+        setMenu([]);
         setOptions({});
       }
     }
     loadData();
   }, [lang]);
 
-  // Fetch translated URLs for the current page (used by language switcher)
+  // scroll listener for sticky animation
   useEffect(() => {
-    if (!entryId) return;
-
-    async function fetchTranslations() {
-      try {
-        const translations = await getEntryTranslations(entryId, entryType, lang);
-        // translations shape: { fi: { slug, id, lang }, no: { slug, ... }, ... }
-        if (!translations || translations.code) return;
-
-        const pathPrefix = ENTRY_PATH[entryType] ?? "";
-        const urls = {};
-
-        for (const targetLang of SUPPORTED_LANGS.filter((l) => l !== lang)) {
-          const t = translations[targetLang];
-          if (t?.slug) {
-            urls[targetLang] = langUrl(`${pathPrefix}/${t.slug}`, targetLang);
-          }
-        }
-
-        if (Object.keys(urls).length > 0) {
-          setTranslatedUrls((prev) => ({ ...prev, ...urls }));
-        }
-      } catch {
-        // keep the homepage fallback already set in initial state
-      }
-    }
-
-    fetchTranslations();
-  }, [entryId, entryType, lang]);
-
-  // Scroll listener for sticky animation
-  useEffect(() => {
-    const handler = () => setScrolled(window.scrollY > 30);
+    const handler = () => {
+      setScrolled(window.scrollY > 30);
+    };
     window.addEventListener("scroll", handler);
     return () => window.removeEventListener("scroll", handler);
   }, []);
 
-  // Close language dropdown on outside click
+  // Sticky header classes
+  const headerClasses = scrolled
+    ? "fixed top-0 w-full z-50 text-white transition-all duration-300 py-4 backdrop-blur-[30px] bg-black/35 shadow-md"
+    : "fixed top-0 w-full z-50 text-white transition-all duration-300 bg-transparent  py-8";
+
+  // Mobile menu state
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [openSubmenu, setOpenSubmenu] = useState(null);
+
+  const [langOpen, setLangOpen] = useState(false);
+  const langRef = React.useRef(null);
+
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (langRef.current && !langRef.current.contains(e.target)) {
         setLangOpen(false);
       }
     };
+
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const headerClasses = scrolled
-    ? "fixed top-0 w-full z-50 text-white transition-all duration-300 py-4 backdrop-blur-[30px] bg-black/35 shadow-md"
-    : "fixed top-0 w-full z-50 text-white transition-all duration-300 bg-transparent py-8";
+  // Build translated URLs for all other languages
+  useEffect(() => {
+    async function fetchLangUrls() {
+      if (!entryId) {
+        setLangUrls(defaultLangUrls());
+        return;
+      }
+      try {
+        const translations = await getEntryTranslations(entryId, entryType, lang);
+        const urls = defaultLangUrls();
+        if (translations) {
+          for (const l of otherLangs) {
+            const slug = translations[l]?.slug;
+            if (slug) urls[l] = buildLangUrl(l, slug, pathPrefix);
+          }
+        }
+        setLangUrls(urls);
+      } catch {
+        setLangUrls(defaultLangUrls());
+      }
+    }
+    fetchLangUrls();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lang, entryId, entryType, pathPrefix]);
 
-  // All other languages for the switcher dropdown
-  const otherLangs = SUPPORTED_LANGS.filter((l) => l !== lang);
+  // Prefix a relative menu URL with the current lang segment
+  function menuHref(url) {
+    if (!url.startsWith("/")) return url;
+    return lang === DEFAULT_LANG ? url : `/${lang}${url}`;
+  }
 
   return (
     <header className={headerClasses}>
       <div className="web-width mx-auto px-6 flex items-center justify-between relative">
         {/* LOGO */}
         <Link
-          href={lang === "en" ? "/" : `/${lang}`}
+          href={lang === DEFAULT_LANG ? "/" : `/${lang}`}
           className="flex relative h-[32px] w-[100px] md:h-[40px] md:w-[100px]"
         >
           {options?.logo_light?.url && (
@@ -159,13 +146,13 @@ export default function Header({
           <div
             className="
               backdrop-blur-[16px] bg-white/25
-              px-8 py-4 rounded-full border border-[#FFFFFF33]
+              px-8 py-4 rounded-full   border border-[#FFFFFF33]
               flex items-center gap-8 lg:absolute lg:left-[338px]
             "
           >
             <ul className="flex items-center gap-9 relative">
               {isLoading ? (
-                // SKELETON MENU
+                // SKELETON MENU (no jump)
                 <>
                   {[1, 2, 3, 4, 5].map((i) => (
                     <li
@@ -176,10 +163,10 @@ export default function Header({
                 </>
               ) : (
                 // REAL MENU
-                menu?.main?.map((item) => (
+                menu.main.map((item) => (
                   <li key={item.id} className="relative group">
                     <Link
-                      href={langUrl(item.url, lang)}
+                      href={menuHref(item.url)}
                       className="
                             text-white/90 text-[15px]
                             hover:text-white transition leading-[18px] flex items-center gap-2"
@@ -214,7 +201,7 @@ export default function Header({
                         {item.children.map((sub) => (
                           <li key={sub.id}>
                             <Link
-                              href={langUrl(sub.url, lang)}
+                              href={menuHref(sub.url)}
                               className="backdrop-blur-[16px] bg-black/25 py-2
                                     block px-4 py-3 text-white/90 text-sm
                                     hover:text-white transition
@@ -234,6 +221,7 @@ export default function Header({
 
           {/* Language Switcher */}
           <div ref={langRef} className="relative">
+            {/* Trigger */}
             <button
               type="button"
               onClick={() => setLangOpen((v) => !v)}
@@ -242,25 +230,29 @@ export default function Header({
       backdrop-blur-xl bg-white/20 px-4 py-4 rounded-sm
       border border-[#FFFFFF33] transition"
             >
-              <span>{LANG_LABELS[lang] || lang.toUpperCase()}</span>
+              <span>{lang.toUpperCase()}</span>
+
+              {/* Arrow */}
               <span
-                className={`transition-transform duration-300 ${langOpen ? "rotate-180" : ""}`}
+                className={`transition-transform duration-300 ${
+                  langOpen ? "rotate-180" : ""
+                }`}
               >
                 <Image src={DownSvg} alt="arrow" width={10} height={10} />
               </span>
             </button>
 
-            {/* Dropdown — all other languages */}
+            {/* Dropdown — one entry per other language */}
             {langOpen && (
               <div className="absolute right-0 mt-2 min-w-full rounded-sm border border-[#FFFFFF33] shadow-lg overflow-hidden z-50">
                 {otherLangs.map((l) => (
                   <Link
                     key={l}
-                    href={translatedUrls[l] || LANG_HOME[l]}
+                    href={langUrls[l]}
                     onClick={() => setLangOpen(false)}
-                    className="block px-4 py-3 text-sm text-white/80 backdrop-blur-lg bg-black/25 hover:text-white transition"
+                    className="block px-4 py-3 text-sm text-white/80 backdrop-blur-[16px] bg-black/25 hover:text-white transition"
                   >
-                    {LANG_LABELS[l]}
+                    {l.toUpperCase()}
                   </Link>
                 ))}
               </div>
@@ -269,25 +261,35 @@ export default function Header({
 
           {/* CTA BUTTON */}
           {!options?.button_text || !options?.button_url ? (
+            // SKELETON PLACEHOLDER (prevents jump)
             <div className="w-[135px] h-[42px] rounded-sm bg-white/20 animate-pulse"></div>
           ) : (
             <Link
-              href={langUrl(options.button_url, lang)}
+              href={
+                options.button_url.startsWith("/")
+                  ? lang === DEFAULT_LANG
+                    ? options.button_url
+                    : `/${lang}${options.button_url}`
+                  : options.button_url
+              }
               className="gap-3 group relative inline-flex items-center select-none
                     rounded-sm px-6 py-4 text-white
                     transition-all duration-300
                     w-[150px] overflow-hidden
-                    bg-(--color-brand)"
+                    bg-[var(--color-brand)]"
             >
+              {/* LEFT SLOT (dot area, fixed width) */}
               <span className="relative w-6 flex items-center justify-center">
                 <span
                   className="
-                        absolute h-2 w-2 rounded-full bg-(--color-accent)
+                        absolute h-2 w-2 rounded-full
                         transition-all duration-300 ease-out
-                        group-hover:opacity-0 group-hover:-translate-x-1"
+                        group-hover:opacity-0 group-hover:-translate-x-1
+                        bg-[var(--color-accent)]"
                 ></span>
               </span>
 
+              {/* TEXT (slides left on hover) */}
               <span
                 className="
                       flex-1 text-[16px] leading-none text-white
@@ -298,10 +300,11 @@ export default function Header({
                 {options.button_text}
               </span>
 
+              {/* RIGHT SLOT (arrow area, fixed width) */}
               <span className="relative w-4 flex items-center justify-center">
                 <span
                   className="
-                        w-4 absolute
+                        w-4 absolute text-[16px]
                         opacity-0 -translate-x-4
                         transition-all duration-300 ease-out
                         group-hover:opacity-100 group-hover:-translate-x-2
@@ -321,7 +324,6 @@ export default function Header({
         >
           ☰
         </button>
-
         {/* MOBILE SLIDE-IN MENU */}
         {mobileOpen && (
           <div className="fixed h-[100vh] inset-0 z-[60] bg-black/60 backdrop-blur-sm lg:hidden">
@@ -350,10 +352,17 @@ export default function Header({
                 >
                   {menu?.main?.map((item) => {
                     const hasChildren = item.children?.length > 0;
+
+                    const parentHref = menuHref(item.url);
+
                     return (
-                      <div key={item.id} className="flex items-center justify-between">
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-between"
+                      >
+                        {/* Parent link */}
                         <Link
-                          href={langUrl(item.url, lang)}
+                          href={parentHref}
                           className="text-white text-lg px-6"
                           onClick={() => {
                             setMobileOpen(false);
@@ -363,6 +372,7 @@ export default function Header({
                           {item.title}
                         </Link>
 
+                        {/* Arrow → open submenu */}
                         {hasChildren && (
                           <button
                             type="button"
@@ -409,7 +419,7 @@ export default function Header({
 
                       {/* Parent title */}
                       <Link
-                        href={langUrl(item.url, lang)}
+                        href={menuHref(item.url)}
                         className="text-white text-lg font-semibold"
                         onClick={() => {
                           setMobileOpen(false);
@@ -424,7 +434,7 @@ export default function Header({
                         {item.children.map((sub) => (
                           <Link
                             key={sub.id}
-                            href={langUrl(sub.url, lang)}
+                            href={menuHref(sub.url)}
                             className="text-white/80 text-base hover:text-white transition"
                             onClick={() => {
                               setMobileOpen(false);
@@ -443,18 +453,18 @@ export default function Header({
               {/* FOOTER (STATIC) */}
               <div className="p-6 border-t border-white/10 flex flex-col gap-4">
                 {/* Language Switcher — all other languages */}
-                <div className="flex gap-3 mb-2">
+                <div className="flex gap-3 flex-wrap mb-4">
                   {otherLangs.map((l) => (
                     <Link
                       key={l}
-                      href={translatedUrls[l] || LANG_HOME[l]}
-                      className="text-white/80 hover:text-white transition text-sm"
+                      href={langUrls[l]}
+                      className="text-white/80"
                       onClick={() => {
                         setMobileOpen(false);
                         setOpenSubmenu(null);
                       }}
                     >
-                      {LANG_LABELS[l]}
+                      {l.toUpperCase()}
                     </Link>
                   ))}
                 </div>
@@ -462,7 +472,13 @@ export default function Header({
                 {/* CTA */}
                 {options?.button_text && (
                   <Link
-                    href={langUrl(options.button_url, lang)}
+                    href={
+                      options.button_url.startsWith("/")
+                        ? lang === DEFAULT_LANG
+                          ? options.button_url
+                          : `/${lang}${options.button_url}`
+                        : options.button_url
+                    }
                     className="gap-3 group relative inline-flex items-center
                       rounded-sm bg-[var(--color-accent)] px-6 py-4 text-white
                       transition-all duration-300 hover:bg-[var(--color-accent)]

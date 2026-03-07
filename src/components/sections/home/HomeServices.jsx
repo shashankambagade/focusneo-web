@@ -14,7 +14,7 @@ import { Navigation } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/navigation";
 
-import { getAllServices } from "@/lib/wp";
+import { getAllServices } from "@/lib/api";
 
 export default function HomeServices({ data, lang = DEFAULT_LANG }) {
   const [services, setServices] = useState([]);
@@ -57,7 +57,7 @@ export default function HomeServices({ data, lang = DEFAULT_LANG }) {
             <Link
               href={
                 cta_url.startsWith("/")
-                  ? lang === "en"
+                  ? lang === DEFAULT_LANG
                     ? cta_url
                     : `/${lang}${cta_url}`
                   : cta_url
@@ -138,7 +138,7 @@ export default function HomeServices({ data, lang = DEFAULT_LANG }) {
               <SwiperSlide key={service.id} className="lg:w-[410px]">
                 <Link
                   href={
-                    lang === "en"
+                    lang === DEFAULT_LANG
                       ? `/service/${service.slug}`
                       : `/${lang}/service/${service.slug}`
                   }

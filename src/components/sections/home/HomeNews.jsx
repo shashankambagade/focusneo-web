@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import ArrowSvg from "../../../../public/right-arrow.svg";
 import CalenerSvg from "../../../../public/calender.svg";
-import { getAllPosts } from "@/lib/wp";
+import { getAllPosts } from "@/lib/api";
 import { DEFAULT_LANG } from "@/config";
 
 export default function HomeNews({ data, lang = DEFAULT_LANG }) {
@@ -125,7 +125,7 @@ export default function HomeNews({ data, lang = DEFAULT_LANG }) {
         ------------------------------------------------------------ */}
         <Link
           href={
-            lang === "en"
+            lang === DEFAULT_LANG
               ? `/post/${webinarPost.slug}`
               : `/${lang}/post/${webinarPost.slug}`
           }
@@ -228,7 +228,7 @@ export default function HomeNews({ data, lang = DEFAULT_LANG }) {
               <Link
                 key={post.id}
                 href={
-                  lang === "en"
+                  lang === DEFAULT_LANG
                     ? `/post/${post.slug}`
                     : `/${lang}/post/${post.slug}`
                 }

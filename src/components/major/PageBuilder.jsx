@@ -2,8 +2,6 @@
 
 import dynamic from "next/dynamic";
 import { DEFAULT_LANG } from "@/config";
-import Cform from "../sections/inner-pages/Cform";
-
 const Hero = dynamic(() => import("../sections/home/HomeHero"));
 const AboutUs = dynamic(() => import("../sections/home/HomeAbout"));
 const ServicesSlider = dynamic(() => import("../sections/home/HomeServices"));

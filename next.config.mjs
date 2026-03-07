@@ -1,56 +1,37 @@
 /** @type {import('next').NextConfig} */
+import { SUPPORTED_LANGS, DEFAULT_LANG } from "./src/config/index.js";
+
+const wpHostname = new URL(process.env.NEXT_PUBLIC_WP_BASE).hostname;
+const nonDefaultLangs = SUPPORTED_LANGS.filter((l) => l !== DEFAULT_LANG);
+
 const nextConfig = {
   reactStrictMode: true,
 
   images: {
     remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "gomowebb.com",
-        pathname: "/**",
-      },
-      {
-        protocol: "https",
-        hostname: "www.gomowebb.com",
-        pathname: "/**",
-      },
-    ],
+      { protocol: "https", hostname: wpHostname, pathname: "/**" },
+      { protocol: "https", hostname: `www.${wpHostname}`, pathname: "/**" },
+    ], 
   },
 
-  // async redirects() {
-  //   return [
-  //     {
-  //       //source: "/frontpage",
-  //       destination: "/",
-  //       permanent: true,  // Permanent redirect (HTTP 301)
-  //     },
-  //   ];
-  // },
+  async redirects() {
+    return SUPPORTED_LANGS.map((lang) => ({
+      source: lang === DEFAULT_LANG ? "/frontpage" : `/${lang}/frontpage`,
+      destination: lang === DEFAULT_LANG ? "/" : `/${lang}`,
+      permanent: true,
+    }));
+  },
 
   async rewrites() {
     return [
-      // Root → English homepage
-      { source: "/", destination: "/en" },
-
-      // Finnish — pass-through so catch-all doesn't grab /fi/*
-      { source: "/fi", destination: "/fi" },
-      { source: "/fi/:path*", destination: "/fi/:path*" },
-
-      // Norwegian Bokmål — pass-through
-      { source: "/no", destination: "/no" },
-      { source: "/no/:path*", destination: "/no/:path*" },
-
-      // Swedish — pass-through
-      { source: "/sv", destination: "/sv" },
-      { source: "/sv/:path*", destination: "/sv/:path*" },
-
-      // English catch-all: rewrite unprefixed paths to /en/*
-      // Negative lookahead excludes existing lang prefixes AND /en itself
-      // so /en, /en/about-us etc. are NOT accidentally rewritten to /en/en/*
-      {
-        source: "/:path((?!en(?:/|$)|fi(?:/|$)|no(?:/|$)|sv(?:/|$)).*)",
-        destination: "/en/:path",
-      },
+      // Pass-throughs for each non-default language (prevents catch-all rewrite below from grabbing them)
+      ...nonDefaultLangs.flatMap((lang) => [
+        { source: `/${lang}`, destination: `/${lang}` },
+        { source: `/${lang}/:path*`, destination: `/${lang}/:path*` },
+      ]),
+      // Default language: rewrite everything else to /en/...
+      { source: "/", destination: `/${DEFAULT_LANG}` },
+      { source: "/:path*", destination: `/${DEFAULT_LANG}/:path*` },
     ];
   },
 };

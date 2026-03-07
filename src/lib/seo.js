@@ -1,19 +1,5 @@
 // src/lib/seo.js
 
-import { LANG_LOCALE_MAP, SUPPORTED_LANGS } from "@/config";
-
-// Builds hreflang alternates for all supported languages.
-// slug: the page slug (undefined/null for homepages)
-// Returns an object for use in metadata.alternates.languages
-export function buildHreflangAlternates(slug) {
-  const path = slug ? `/${slug}` : "";
-  const languages = {};
-  for (const l of SUPPORTED_LANGS) {
-    languages[l] = l === "en" ? path || "/" : `/${l}${path}`;
-  }
-  return languages;
-}
-
 function stripHtml(raw) {
   if (!raw) return "";
   return raw.replace(/<[^>]*>?/gm, "").replace(/\s+/g, " ").trim();
@@ -66,10 +52,7 @@ export function buildMetadataFromYoast(entry, options = {}) {
     description,
     alternates: yoast?.canonical
       ? {
-          canonical: yoast.canonical.replace(
-            new RegExp(`^https?://(www\\.)?[^/]+(?:/(${SUPPORTED_LANGS.join("|")}))?(/|$)`),
-            "/"
-          ),
+          canonical: yoast.canonical.replace(/^https?:\/\/(www\.)?[^\/]+\/en(\/|$)/, "/"),
         }
       : undefined,
     openGraph: {
@@ -78,7 +61,7 @@ export function buildMetadataFromYoast(entry, options = {}) {
       url: yoast?.og_url,
       siteName: yoast?.og_site_name,
       type: yoast?.og_type || (entry?.type === "case_study" ? "article" : "website"),
-      locale: yoast?.og_locale || LANG_LOCALE_MAP[lang] || "en_US",
+      locale: yoast?.og_locale || (lang === "da" ? "da_DK" : "en_US"),
       images: mapOgImages(yoast?.og_image),
     },
     twitter: {

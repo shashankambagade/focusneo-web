@@ -8,7 +8,6 @@ import { motion } from "framer-motion";
 export default function HomeHero({ data }) {
   const bgImage = data?.bg_image?.url || "";
   const bgVideo = data?.bg_video?.url || "";
-
   const heading = data?.heading || "";
   const shortHeading = data?.short_heading || "";
 
@@ -83,8 +82,6 @@ export default function HomeHero({ data }) {
           </motion.a>
         </div>
       </div>
-
-
     </section>
   );
 }

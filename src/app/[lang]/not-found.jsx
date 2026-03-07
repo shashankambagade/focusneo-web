@@ -3,26 +3,31 @@
 import Link from "next/link";
 import Image from "next/image";
 import Header from "@/components/major/Header";
-import { resolveParams } from "@/lib/params";
 import Footer from "@/components/major/Footer";
-import { DEFAULT_LANG } from "@/config";
+import { DEFAULT_LANG, SUPPORTED_LANGS } from "@/config";
+import { headers } from "next/headers";
 import ArrowSvg from "../../../public/right-arrow.svg";
 
-export default async function LangScopedNotFound({ params }) {
-  const resolved = await params;
-  const parsed = resolveParams(resolved);
-  const lang = parsed?.lang || DEFAULT_LANG;
+export default async function LangScopedNotFound() {
+  // next/navigation params are not passed to not-found components;
+  // read the request pathname from headers instead.
+  const h = await headers();
+  const pathname = h.get("x-pathname") ?? h.get("referer") ?? "";
+  const firstSegment = pathname.split("/").find((s) => SUPPORTED_LANGS.includes(s));
+  const lang = firstSegment || DEFAULT_LANG;
 
   // Language-specific messages
   const messages = {
     en: {
       title: "The page you're looking for doesn't exist.",
-      description: "It might have been removed, renamed, or is temporarily unavailable. Please double-check the URL or head back to the homepage.",
+      description:
+        "It might have been removed, renamed, or is temporarily unavailable. Please double-check the URL or head back to the homepage.",
       buttonText: "Go to Homepage",
     },
     da: {
       title: "Siden du leder efter findes ikke.",
-      description: "Den kan være blevet fjernet, omdøbt eller er midlertidigt utilgængelig. Tjek venligst URL'en eller vend tilbage til forsiden.",
+      description:
+        "Den kan være blevet fjernet, omdøbt eller er midlertidigt utilgængelig. Tjek venligst URL'en eller vend tilbage til forsiden.",
       buttonText: "Gå til Hjemmesiden",
     },
   };
@@ -32,14 +37,14 @@ export default async function LangScopedNotFound({ params }) {
   return (
     <>
       <Header lang={lang} />
-      <div className="h-[112px] w-full bg-black"></div>
+      <div className="h-28 w-full bg-black"></div>
       <main className="min-h-[60vh] flex flex-col items-center justify-center gap-6 px-4 py-16 text-center">
         <p className="text-sm uppercase tracking-[0.3em] text-gray-500">404</p>
         <h1 className="text-4xl font-semibold">{currentMessages.title}</h1>
         <p className="text-gray-600 max-w-xl">{currentMessages.description}</p>
         <Link
-          href="/"
-          className="gap-3 group relative inline-flex items-center rounded-sm bg-[var(--color-brand)] px-6 py-4 text-white transition-all duration-300 hover:bg-[var(--color-brand)] w-[185px] overflow-hidden select-none"
+          href={lang === DEFAULT_LANG ? "/" : `/${lang}`}
+          className="gap-3 group relative inline-flex items-center rounded-sm bg-[var(--color-brand)] px-6 py-4 text-white transition-all duration-300 hover:bg-[var(--color-brand)] w-[195px] overflow-hidden select-none"
         >
           {/* DOT */}
           <span className="relative w-6 flex items-center justify-center">
